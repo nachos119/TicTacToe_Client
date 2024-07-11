@@ -16,31 +16,37 @@ public class roomInfo
 public enum Opcode
 {
     C_Login = 0,
-    C_Create_Room = 1,
-    C_Join_Room = 2,
-    C_Search_Room = 3,
-    C_Ready = 4,
-    C_Start = 5,
-    C_Room_List = 6,
-    C_Room_Entry = 7,
-    C_Matching = 8,
-    C_Cancle_Matching = 9,
 
-    SendMessage = 10,
+    C_UserInfo = 1,
 
-    C_UserInfo = 14,
+    C_Create_Room = 10,
+    C_Join_Room = 11,
+    C_Search_Room = 12,
+    C_Enter_Room = 13,
+    C_Leave_Room = 14,
+    C_Room_List = 15,
 
-    C_TicTacToe = 20,
+    C_Ready = 21,
+    C_Start = 22,
+    C_Ready_Cancel = 23,
 
+    C_Matching = 30,
+    C_Cancel_Matching = 31,
+
+    C_TicTacToe = 40,
 
     C_Ping = 50,
     C_Pong = 51,
+
+    SendMessage = 100,
 }
 
 public class Packet
 {
     public Opcode opcode;
     public string message;
+    public long timestamp;
+    public long ping;
 }
 
 public class TcpMessage : Packet
@@ -60,10 +66,13 @@ public class RoomInfo : Packet
 public class UserInfo
 {
     public string name;
-    public RoomInfo currentRoom;
 
     // 연결된 번호
     public int connectNumber;
+    public bool isReady;
+    public bool isMatching;
+    public bool hasPonged;
+    public long pingTimestamp;
 }
 
 public class RequestGame : Packet
@@ -85,10 +94,39 @@ public class ResponseGame : Packet
 }
 public class RequestRoomList : Packet
 {
-    public List<RoomInfo> roomList { get; set; }
+    public List<RoomInfo> roomList;
 }
 
 public class RequestUserInfo : Packet
 {
-    public UserInfo userInfo { get; set; }
+    public UserInfo userInfo;
+}
+
+public class SearchRoom : Packet
+{
+    public int roomNumber;
+    public bool existRoom;
+    public RoomInfo roominfo;
+}
+
+public class CancelMatching : Packet
+{
+    public bool isCancel;
+}
+
+public class LeaveRoom : Packet
+{
+    public UserInfo userInfo;
+    public RoomInfo roominfo;
+}
+
+public class EnterRoom : Packet
+{
+    public RoomInfo roominfo;
+}
+
+public class RequestReady : Packet
+{
+    public int roomNumber;
+    public int player;
 }

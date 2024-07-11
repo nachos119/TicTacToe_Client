@@ -8,8 +8,12 @@ public class RoomListPanelController : MonoBehaviour
 {
     [SerializeField] private Button closeButton = null;
     [SerializeField] private Button createRoomButton = null;
+    [SerializeField] private Button searchRoomButton = null;
+
     [SerializeField] private RoomElementController roomElement = null;
     [SerializeField] private GameObject scrollViewContent = null;
+
+    [SerializeField] private RoomInfoPanelController roomInfoPanelController = null;
 
     private void Awake()
     {
@@ -17,9 +21,10 @@ public class RoomListPanelController : MonoBehaviour
         //createRoomButton.onClick.AddListener(OnClickCreateRoomButton);
     }
 
-    public async void Show()
+    public void Show()
     {
         gameObject.SetActive(true);
+        roomInfoPanelController.gameObject.SetActive(false);
 
         TCPManager.Instance.SetHandleRoomList = SetRoomList;
     }
@@ -31,7 +36,14 @@ public class RoomListPanelController : MonoBehaviour
 
     private void OnClickCloseButton()
     {
-        Hide();
+        if (roomInfoPanelController.gameObject.activeSelf == true)
+        {
+            roomInfoPanelController.gameObject.SetActive(false);
+        }
+        else
+        {
+            Hide();
+        }
     }
 
     private void OnClickCreateRoomButton()

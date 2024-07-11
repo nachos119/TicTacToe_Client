@@ -1,7 +1,10 @@
+using Cysharp.Threading.Tasks;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class GameSceneController : MonoBehaviour
 {
@@ -13,17 +16,28 @@ public class GameSceneController : MonoBehaviour
 
     [SerializeField] private GameObject dimImage = null;
 
-    [SerializeField] private TMP_Text statusText; // 게임 상태를 표시하는 텍스트
+    [SerializeField] private TMP_Text statusText = null;    // 게임 상태를 표시하는 텍스트
+
+    [SerializeField] private Button readyButton = null;
+    [SerializeField] private TMP_Text readyButtonText = null;
+    [SerializeField] private GameObject ReadyObject = null;
 
     private InGameManager inGameManager = null;
+    private TCPManager tcpManager = null;
     private List<TicTacToeElementController> ticTacToeList = null;
 
-    private int[] board; // 게임 보드를 나타내는 배열
-    private int currentPlayer; // 현재 플레이어 (0: X, 1: O)
+    private CancellationTokenSource readyCancellationTokenSource = null;
+
+    private int[] board;        // 게임 보드를 나타내는 배열
+    private int currentPlayer;  // 현재 플레이어 (0: X, 1: O)
+    private bool isReady;
 
     private void Start()
     {
         inGameManager = InGameManager.Instance;
+        tcpManager = TCPManager.Instance;
+
+        readyButton.onClick.AddListener(OnClickReadyButton);
 
         ResetGame();
 
@@ -37,18 +51,13 @@ public class GameSceneController : MonoBehaviour
         // timer 세팅
         // 상대방이 강종했을때 혹은 연결이 끊겼을때 처리
         // 어떤식으로 진행할지
-        if (currentPlayer == 0)
-        {
-            dimImage.active = false;
-        }
-        else
-        {
-            dimImage.active = true;
-        }
 
-        TCPManager.Instance.SetHandleResponsetTicTacToe = ResponseData;
+        tcpManager.SetHandleResponsetTicTacToe = ResponseData;
+        tcpManager.SetHandleStart = TicTacToeStart;
 
         EnabledTacToeElement(true);
+
+        dimImage.active = true;
     }
 
     private void ResetGame()
@@ -69,8 +78,8 @@ public class GameSceneController : MonoBehaviour
         {
             int index = i;
             ticTacToeList[i].SetIndex = index;
-            ticTacToeList[i].SetButton(OnClickButton);
-            ticTacToeList[i].ChangeTicTacToeElement(-1);
+            ticTacToeList[i].SetButton(OnClickElementButton);
+            ticTacToeList[i].ResetTicTacToeElement();
         }
 
         EnabledTacToeElement(false);
@@ -83,12 +92,16 @@ public class GameSceneController : MonoBehaviour
 
         currentPlayer = 0; // X 플레이어부터 시작
         statusText.text = "Player X's Turn";
+
+        ReadyObject.SetActive(true);
+        isReady = false;
+        ChangeReadyButton();
     }
 
-    private async void OnClickButton(int _index)
+    private async void OnClickElementButton(int _index)
     {
         dimImage.active = true;
-        await TCPManager.Instance.HandleRequestTicTacToe(inGameManager.SetRoomInfo.roomNumber, _index, currentPlayer);
+        await tcpManager.HandleRequestTicTacToe(inGameManager.SetRoomInfo.roomNumber, _index, currentPlayer);
     }
 
     private void EnabledTacToeElement(bool _Enabled)
@@ -104,12 +117,8 @@ public class GameSceneController : MonoBehaviour
     {
         dimImage.active = _responseGame.player == currentPlayer ? true : false;
         Debug.Log("이사람{currentPlayer}");
-        ticTacToeList[_responseGame.index].ChangeTicTacToeElement(_responseGame.player);
-
-        if (_responseGame.delete == true)
-        {
-            ticTacToeList[_responseGame.deleteIndex].ChangeTicTacToeElement(-1);
-        }
+        // 돌 두기 애니
+        await ticTacToeList[_responseGame.index].ChangeTicTacToeElement(_responseGame.player);
 
         // 결과
         if (_responseGame.playing == true)
@@ -123,6 +132,12 @@ public class GameSceneController : MonoBehaviour
             else
             {
                 dimImage.active = false;
+            }
+
+            // 이전에 둔 돌 제거 애니
+            if (_responseGame.delete == true)
+            {
+                await ticTacToeList[_responseGame.deleteIndex].ChangeTicTacToeElement(-1);
             }
         }
         else
@@ -142,6 +157,53 @@ public class GameSceneController : MonoBehaviour
             }
 
             UnityEngine.SceneManagement.SceneManager.LoadScene("LobbyScene");
+        }
+    }
+
+    private void OnClickReadyButton()
+    {
+        isReady = !isReady;
+        ChangeReadyButton();
+    }
+
+    private void ChangeReadyButton()
+    {
+        readyCancellationTokenSource = new CancellationTokenSource();
+
+        readyButton.enabled = false;
+
+        if (isReady == true)
+        {
+            tcpManager.HandleReady(inGameManager.SetRoomInfo.roomNumber, currentPlayer);
+            readyButtonText.text = $"Cancel";
+        }
+        else
+        {
+            tcpManager.HandleReadyCancel(inGameManager.SetRoomInfo.roomNumber, currentPlayer);
+            readyButtonText.text = $"Ready";
+        }
+
+        ActiveReadyButton(readyCancellationTokenSource.Token);
+    }
+
+    private async void ActiveReadyButton(CancellationToken _token)
+    {
+        await UniTask.Delay(2000);
+
+        if (!_token.IsCancellationRequested)
+            readyButton.enabled = true;
+    }
+
+    private void TicTacToeStart()
+    {
+        readyCancellationTokenSource.Cancel();
+
+        ReadyObject.SetActive(false);
+
+
+        if (currentPlayer == 0)
+        {
+            dimImage.active = false;
         }
     }
 }

@@ -1,14 +1,9 @@
 using Cysharp.Threading.Tasks;
 using Newtonsoft.Json;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
-using Unity.VisualScripting;
-using UnityEngine;
 
 public class TCPManager : LazySingleton<TCPManager>
 {
@@ -21,16 +16,14 @@ public class TCPManager : LazySingleton<TCPManager>
     private Action<List<RoomInfo>> handleRoomList = null;
     private Action<UserInfo> handleUserInfo = null;
     private Action<long> handlePing = null;
+    private Action handleStart = null;
 
     public Action<ResponseGame> SetHandleResponsetTicTacToe { set { handleResponsetTicTacToe = value; } }
     public Action<RoomInfo> SetHandleMatchingTicTacToe { set { handleMatchingTicTacToe = value; } }
     public Action<List<RoomInfo>> SetHandleRoomList { set { handleRoomList = value; } }
     public Action<UserInfo> SetHandleUserInfo { set { handleUserInfo = value; } }
     public Action<long> SetHandlePing { set { handlePing = value; } }
-
-    private static Stopwatch pingStopwatch = new Stopwatch();
-    private static int pingTimeoutMilliseconds = 5000;
-    private static CancellationTokenSource pingCancellationTokenSource;
+    public Action SetHandleStart { set { handleStart = value; } }
 
     public async UniTask<bool> TcpConnectAsync(string _ipAddress, int _port)
     {
@@ -78,9 +71,6 @@ public class TCPManager : LazySingleton<TCPManager>
     {
         int byteCount;
 
-        // 핑 메시지 주기적으로 보내기
-        _ = SendPingAsync(stream);
-
         try
         {
             while ((byteCount = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)
@@ -93,24 +83,44 @@ public class TCPManager : LazySingleton<TCPManager>
 
                 switch (resultOpcode.opcode)
                 {
+                    case Opcode.C_UserInfo:
+                        var resultUserInfo = JsonConvert.DeserializeObject<RequestUserInfo>(response);
+                        handleUserInfo?.Invoke(resultUserInfo.userInfo);
+                        break;
+                    case Opcode.C_Create_Room:
+                        // 신이동 등등
+                        handleStart?.Invoke();
+                        break;
+                    case Opcode.C_Search_Room:
+                        handleStart?.Invoke();
+                        break;
+                    case Opcode.C_Enter_Room:
+                        handleStart?.Invoke();
+                        break;
+                    case Opcode.C_Leave_Room:
+                        handleStart?.Invoke();
+                        break;
                     case Opcode.C_Room_List:
                         var resultRoomList = JsonConvert.DeserializeObject<RequestRoomList>(response);
                         handleRoomList?.Invoke(resultRoomList.roomList);
+                        break;
+                    case Opcode.C_Start:
+                        handleStart?.Invoke();
                         break;
                     case Opcode.C_Matching:
                         var resultRoomInfo = JsonConvert.DeserializeObject<RoomInfo>(response);
                         handleMatchingTicTacToe?.Invoke(resultRoomInfo);
                         break;
+                    case Opcode.C_Cancel_Matching:
+                        handleStart?.Invoke();
+                        break;
                     case Opcode.C_TicTacToe:
                         var responseGameResult = JsonConvert.DeserializeObject<ResponseGame>(response);
                         handleResponsetTicTacToe?.Invoke(responseGameResult);
                         break;
-                    case Opcode.C_UserInfo:
-                        var resultUserInfo = JsonConvert.DeserializeObject<RequestUserInfo>(response);
-                        handleUserInfo?.Invoke(resultUserInfo.userInfo);
-                        break;
-                    case Opcode.C_Pong:
-                        HandlePong();
+                    case Opcode.C_Ping:
+                        await SendPongAsync();
+                        HandlePong(resultOpcode.timestamp);
                         break;
                     default:
                         Console.WriteLine("알 수 없는 Opcode입니다.");
@@ -140,10 +150,10 @@ public class TCPManager : LazySingleton<TCPManager>
         await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
     }
 
-    public async UniTask CancleMatching()
+    public async UniTask CancelMatching()
     {
         Packet request = new Packet();
-        request.opcode = Opcode.C_Cancle_Matching;
+        request.opcode = Opcode.C_Cancel_Matching;
         var convert = JsonConvert.SerializeObject(request);
         byte[] messageBytes = Encoding.UTF8.GetBytes(convert);
 
@@ -172,47 +182,95 @@ public class TCPManager : LazySingleton<TCPManager>
         byte[] messageBytes = Encoding.UTF8.GetBytes(convert);
         await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
     }
-
-    public async UniTask SendPingAsync(NetworkStream stream)
+        
+    public async void HandleReady(int _roomNumber, int _player)
     {
-        while (true)
-        {
-            pingCancellationTokenSource = new CancellationTokenSource();
+        RequestReady request = new RequestReady();
+        request.opcode = Opcode.C_Ready;
+        request.roomNumber = _roomNumber;
+        request.player = _player;
 
-            var pingPacket = new Packet { opcode = Opcode.C_Ping };
-            var requestJson = JsonConvert.SerializeObject(pingPacket);
-            byte[] requestBytes = Encoding.UTF8.GetBytes(requestJson);
+        var convert = JsonConvert.SerializeObject(request);
+        byte[] messageBytes = Encoding.UTF8.GetBytes(convert);
 
-            pingStopwatch.Restart(); // 핑 전송 시간 기록 시작
-
-            await stream.WriteAsync(requestBytes, 0, requestBytes.Length);
-            Console.WriteLine("핑 메시지 전송");
-
-            // 타임아웃 설정
-            _ = UniTask.Delay(pingTimeoutMilliseconds, cancellationToken: pingCancellationTokenSource.Token).ContinueWith(() =>
-            {
-                if (!pingCancellationTokenSource.IsCancellationRequested)
-                {
-                    Console.WriteLine("퐁 응답을 받지 못했습니다. 연결을 종료합니다.");
-                    client.Close();
-                    Environment.Exit(0);
-                }
-            });
-
-            await UniTask.Delay(pingTimeoutMilliseconds); // 5초마다 핑 메시지 전송
-        }
+        await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
     }
 
-    public void HandlePong()
+    public async void HandleReadyCancel(int _roomNumber, int _player)
     {
-        pingStopwatch.Stop();
-        long ping = pingStopwatch.ElapsedMilliseconds;
+        RequestReady request = new RequestReady();
+        request.opcode = Opcode.C_Ready_Cancel;
+        request.roomNumber = _roomNumber;
+        request.player = _player;
+
+        var convert = JsonConvert.SerializeObject(request);
+        byte[] messageBytes = Encoding.UTF8.GetBytes(convert);
+
+        await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
+    }
+
+    public async UniTask HandleCreateRoom()
+    {
+        Packet request = new Packet();
+        request.opcode = Opcode.C_Create_Room;
+        var convert = JsonConvert.SerializeObject(request);
+        byte[] messageBytes = Encoding.UTF8.GetBytes(convert);
+
+        await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
+    }
+
+    public async UniTask HandleSearchRoom(int _roomNumber)
+    {
+        SearchRoom request = new SearchRoom();
+        request.opcode = Opcode.C_Search_Room;
+        request.roomNumber = _roomNumber;
+
+        var convert = JsonConvert.SerializeObject(request);
+        byte[] messageBytes = Encoding.UTF8.GetBytes(convert);
+
+        await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
+    }
+
+    public async UniTask HandleEnterRoom(RoomInfo _roomInfo)
+    {
+        EnterRoom enterRoom = new EnterRoom();
+        enterRoom.opcode = Opcode.C_Enter_Room;
+        enterRoom.roominfo = _roomInfo;
+
+        var convert = JsonConvert.SerializeObject(enterRoom);
+        byte[] messageBytes = Encoding.UTF8.GetBytes(convert);
+
+        await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
+    }
+
+    public async UniTask HandleLeaveRoom(RoomInfo _roomInfo)
+    {
+        LeaveRoom leaveRoom = new LeaveRoom();
+        leaveRoom.opcode = Opcode.C_Leave_Room;
+        leaveRoom.roominfo = _roomInfo;
+
+        var convert = JsonConvert.SerializeObject(leaveRoom);
+        byte[] messageBytes = Encoding.UTF8.GetBytes(convert);
+
+        await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
+    }
+
+    private async UniTask SendPongAsync()
+    {
+        Packet pongPacket = new Packet { opcode = Opcode.C_Pong };
+        var convert = JsonConvert.SerializeObject(pongPacket);
+        byte[] messageBytes = Encoding.UTF8.GetBytes(convert);
+        await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
+    }
+
+    public void HandlePong(long _serverTimestamp)
+    {
+        long currentTimestamp = DateTime.UtcNow.Ticks;
+        long ping = (currentTimestamp - _serverTimestamp) / TimeSpan.TicksPerMillisecond;
+
         Console.WriteLine($"퐁 메시지를 수신했습니다. 핑: {ping}ms");
 
         // 추가적으로 처리할 로직이 있다면 여기에 작성
         handlePing?.Invoke(ping);
-
-        // 타임아웃 취소
-        pingCancellationTokenSource.Cancel();
     }
 }

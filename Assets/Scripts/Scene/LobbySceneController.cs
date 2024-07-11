@@ -43,9 +43,9 @@ public class LobbySceneController : MonoBehaviour
         await tcpManager.Matching();
     }
 
-    private async void OnClickCancleMatchingButton()
+    private async void OnClickCancelMatchingButton()
     {
-        await tcpManager.CancleMatching();
+        await tcpManager.CancelMatching();
     }
 
     private void Matched(RoomInfo _roomInfo)

@@ -137,9 +137,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   thisButton: {fileID: 8287274241683510548}
   thisImage: {fileID: 2901825874834458631}
-  nonImage: {fileID: 21300000, guid: 94538cd98f5ff3945b94ed69a678030b, type: 3}
-  aImage: {fileID: 21300000, guid: 94538cd98f5ff3945b94ed69a678030b, type: 3}
-  bImage: {fileID: 21300000, guid: 8fd700ddf8123254db02605b95cdf0f1, type: 3}
+  nonImage: {fileID: -570283488, guid: 74264f23a50b2584f927973bf3bebd35, type: 3}
+  aImage: {fileID: -570283488, guid: 74264f23a50b2584f927973bf3bebd35, type: 3}
+  bImage: {fileID: 1653077800, guid: 74264f23a50b2584f927973bf3bebd35, type: 3}
 --- !u!1 &3532331272554185768
 GameObject:
   m_ObjectHideFlags: 0
