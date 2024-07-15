@@ -22,6 +22,15 @@ public class GameSceneController : MonoBehaviour
     [SerializeField] private TMP_Text readyButtonText = null;
     [SerializeField] private GameObject ReadyObject = null;
 
+    [SerializeField] private GameObject resultObject = null;
+    [SerializeField] private Image resultImage = null;
+    [SerializeField] private Sprite winImage = null;
+    [SerializeField] private Sprite loseImage = null;
+
+    [SerializeField] private Button resultButton = null;
+
+    private CancellationTokenSource resultCancellationTokenSource = null;
+
     private InGameManager inGameManager = null;
     private TCPManager tcpManager = null;
     private List<TicTacToeElementController> ticTacToeList = null;
@@ -38,6 +47,7 @@ public class GameSceneController : MonoBehaviour
         tcpManager = TCPManager.Instance;
 
         readyButton.onClick.AddListener(OnClickReadyButton);
+        resultButton.onClick.AddListener(OnClickResultButton);
 
         ResetGame();
 
@@ -96,6 +106,8 @@ public class GameSceneController : MonoBehaviour
         ReadyObject.SetActive(true);
         isReady = false;
         ChangeReadyButton();
+
+        resultObject.SetActive(false);
     }
 
     private async void OnClickElementButton(int _index)
@@ -149,14 +161,19 @@ public class GameSceneController : MonoBehaviour
             {
                 // 유저 승리
                 Debug.Log("승리");
+                resultImage.sprite = winImage;
             }
             else
             {
                 // 상대방 승리
                 Debug.Log("졌다");
+                resultImage.sprite = loseImage;
             }
 
-            UnityEngine.SceneManagement.SceneManager.LoadScene("LobbyScene");
+            resultObject.SetActive(true);
+            resultCancellationTokenSource = new CancellationTokenSource();
+            // 여기서 시간초
+            ResultUniTask(resultCancellationTokenSource.Token);
         }
     }
 
@@ -205,5 +222,23 @@ public class GameSceneController : MonoBehaviour
         {
             dimImage.active = false;
         }
+    }
+
+    private void OnClickResultButton()
+    {
+        LoadScene();
+    }
+
+    private async void ResultUniTask(CancellationToken _token)
+    {
+        await UniTask.Delay(5000, _token.IsCancellationRequested);
+
+        if (!_token.IsCancellationRequested)
+            LoadScene();
+    }
+
+    private void LoadScene()
+    {
+        UnityEngine.SceneManagement.SceneManager.LoadScene("LobbyScene");
     }
 }

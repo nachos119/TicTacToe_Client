@@ -17,6 +17,7 @@ public class TCPManager : LazySingleton<TCPManager>
     private Action<UserInfo> handleUserInfo = null;
     private Action<long> handlePing = null;
     private Action handleStart = null;
+    private Action<SearchRoom> handleSearchRoom = null;
 
     public Action<ResponseGame> SetHandleResponsetTicTacToe { set { handleResponsetTicTacToe = value; } }
     public Action<RoomInfo> SetHandleMatchingTicTacToe { set { handleMatchingTicTacToe = value; } }
@@ -24,6 +25,7 @@ public class TCPManager : LazySingleton<TCPManager>
     public Action<UserInfo> SetHandleUserInfo { set { handleUserInfo = value; } }
     public Action<long> SetHandlePing { set { handlePing = value; } }
     public Action SetHandleStart { set { handleStart = value; } }
+    public Action<SearchRoom> SetHandleSearchRoom { set { handleSearchRoom = value; } }
 
     public async UniTask<bool> TcpConnectAsync(string _ipAddress, int _port)
     {
@@ -92,12 +94,15 @@ public class TCPManager : LazySingleton<TCPManager>
                         handleStart?.Invoke();
                         break;
                     case Opcode.C_Search_Room:
-                        handleStart?.Invoke();
+                        var resultSearchRoom = JsonConvert.DeserializeObject<SearchRoom>(response);
+                        handleSearchRoom?.Invoke(resultSearchRoom);
                         break;
                     case Opcode.C_Enter_Room:
+                        // 신이동 등등
                         handleStart?.Invoke();
                         break;
                     case Opcode.C_Leave_Room:
+                        // 신이동 등등
                         handleStart?.Invoke();
                         break;
                     case Opcode.C_Room_List:
@@ -182,7 +187,7 @@ public class TCPManager : LazySingleton<TCPManager>
         byte[] messageBytes = Encoding.UTF8.GetBytes(convert);
         await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
     }
-        
+
     public async void HandleReady(int _roomNumber, int _player)
     {
         RequestReady request = new RequestReady();
