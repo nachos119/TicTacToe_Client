@@ -8,6 +8,10 @@ using UnityEngine.UI;
 
 public class GameSceneController : MonoBehaviour
 {
+    private readonly string opponentText = "Opponent";
+    private readonly string turnText = "Turn";
+    private readonly string myText = "My";
+
     [SerializeField] private TicTacToeElementController tacToeElementController = null;
     [SerializeField] private GameObject gamePanelObject = null;
     [SerializeField] private TMP_Text timer = null;
@@ -16,7 +20,7 @@ public class GameSceneController : MonoBehaviour
 
     [SerializeField] private GameObject dimImage = null;
 
-    [SerializeField] private TMP_Text statusText = null;    // 게임 상태를 표시하는 텍스트
+    [SerializeField] private TMP_Text statusText = null;
 
     [SerializeField] private Button readyButton = null;
     [SerializeField] private TMP_Text readyButtonText = null;
@@ -33,6 +37,7 @@ public class GameSceneController : MonoBehaviour
 
     private InGameManager inGameManager = null;
     private TCPManager tcpManager = null;
+    private TimerManager timerManager = null;
     private List<TicTacToeElementController> ticTacToeList = null;
 
     private CancellationTokenSource readyCancellationTokenSource = null;
@@ -45,9 +50,12 @@ public class GameSceneController : MonoBehaviour
     {
         inGameManager = InGameManager.Instance;
         tcpManager = TCPManager.Instance;
+        timerManager = TimerManager.Instance;
 
         readyButton.onClick.AddListener(OnClickReadyButton);
         resultButton.onClick.AddListener(OnClickResultButton);
+
+        timerManager.SetUpdateTimerUI = UpdateTimer;
 
         ResetGame();
 
@@ -61,6 +69,19 @@ public class GameSceneController : MonoBehaviour
         // timer 세팅
         // 상대방이 강종했을때 혹은 연결이 끊겼을때 처리
         // 어떤식으로 진행할지
+
+        if (currentPlayer == 0)
+        {
+            statusText.text = $"{myText} {turnText}";
+            player_1.text = myText;
+            player_2.text = opponentText;
+        }
+        else
+        {
+            statusText.text = $"{opponentText} {turnText}";
+            player_1.text = opponentText;
+            player_2.text = myText;
+        }
 
         tcpManager.SetHandleResponsetTicTacToe = ResponseData;
         tcpManager.SetHandleStart = TicTacToeStart;
@@ -101,7 +122,6 @@ public class GameSceneController : MonoBehaviour
         }
 
         currentPlayer = 0; // X 플레이어부터 시작
-        statusText.text = "Player X's Turn";
 
         ReadyObject.SetActive(true);
         isReady = false;
@@ -127,6 +147,8 @@ public class GameSceneController : MonoBehaviour
 
     private async void ResponseData(ResponseGame _responseGame)
     {
+        timerManager.StopTimer();
+
         dimImage.active = _responseGame.player == currentPlayer ? true : false;
         Debug.Log("이사람{currentPlayer}");
         // 돌 두기 애니
@@ -135,15 +157,18 @@ public class GameSceneController : MonoBehaviour
         // 결과
         if (_responseGame.playing == true)
         {
+            timerManager.StartTimer();
+
             // 아직 게임 진행중
             if (currentPlayer == _responseGame.player)
             {
                 Debug.Log("요사람{_responseGame.player}");
-                dimImage.active = true;
+                statusText.text = $"{opponentText} {turnText}";
             }
             else
             {
                 dimImage.active = false;
+                statusText.text = $"{myText} {turnText}";
             }
 
             // 이전에 둔 돌 제거 애니
@@ -172,7 +197,6 @@ public class GameSceneController : MonoBehaviour
 
             resultObject.SetActive(true);
             resultCancellationTokenSource = new CancellationTokenSource();
-            // 여기서 시간초
             ResultUniTask(resultCancellationTokenSource.Token);
         }
     }
@@ -222,6 +246,8 @@ public class GameSceneController : MonoBehaviour
         {
             dimImage.active = false;
         }
+
+        timerManager.StartTimer();
     }
 
     private void OnClickResultButton()
@@ -240,5 +266,15 @@ public class GameSceneController : MonoBehaviour
     private void LoadScene()
     {
         UnityEngine.SceneManagement.SceneManager.LoadScene("LobbyScene");
+    }
+
+    private void UpdateTimer(float _time)
+    {
+        timer.text = $"{_time}";
+    }
+
+    private void OnDestroy()
+    {
+        timerManager.StopTimer();
     }
 }

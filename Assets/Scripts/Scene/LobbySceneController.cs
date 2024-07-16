@@ -35,7 +35,8 @@ public class LobbySceneController : MonoBehaviour
     {
         await tcpManager.PlayerInfoAsync();
 
-        GameObject.Instantiate(pingPanelCountroller);
+        if (PingManager.Instance.SetPingPanel == null)
+            PingManager.Instance.SetPingPanel = GameObject.Instantiate(pingPanelCountroller);
     }
 
     private async void OnClickMatchingButton()
