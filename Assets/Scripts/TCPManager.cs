@@ -40,7 +40,6 @@ public class TCPManager : LazySingleton<TCPManager>
             stream = client.GetStream();
             UnityEngine.Debug.Log("서버에 연결되었습니다.");
 
-            // 서버로부터 데이터를 비동기적으로 읽기 시작합니다.
             _ = ReadDataAsync();
 
             return true;
@@ -55,12 +54,9 @@ public class TCPManager : LazySingleton<TCPManager>
 
     public async UniTask<string> Login(string _id)
     {
-        // 임시 나중에 수정해야함 메시지 전송
         byte[] messageBytes = Encoding.UTF8.GetBytes(_id);
         await stream.WriteAsync(messageBytes, 0, messageBytes.Length);
-        Console.WriteLine($"메시지 전송: {_id}");
 
-        // 응답 수신
         byte[] buffer = new byte[1024];
         int byteCount = await stream.ReadAsync(buffer, 0, buffer.Length);
         string response = Encoding.UTF8.GetString(buffer, 0, byteCount);
@@ -78,10 +74,7 @@ public class TCPManager : LazySingleton<TCPManager>
             while ((byteCount = await stream.ReadAsync(buffer, 0, buffer.Length)) != 0)
             {
                 string response = Encoding.UTF8.GetString(buffer, 0, byteCount);
-                Console.WriteLine($"받은 메시지: {response}");
-
                 var resultOpcode = JsonConvert.DeserializeObject<Packet>(response);
-                Console.WriteLine($"받은 메시지: {resultOpcode.opcode}");
 
                 switch (resultOpcode.opcode)
                 {
@@ -90,7 +83,6 @@ public class TCPManager : LazySingleton<TCPManager>
                         handleUserInfo?.Invoke(resultUserInfo.userInfo);
                         break;
                     case Opcode.C_Create_Room:
-                        // 신이동 등등
                         handleStart?.Invoke();
                         break;
                     case Opcode.C_Search_Room:
@@ -98,11 +90,9 @@ public class TCPManager : LazySingleton<TCPManager>
                         handleSearchRoom?.Invoke(resultSearchRoom);
                         break;
                     case Opcode.C_Enter_Room:
-                        // 신이동 등등
                         handleStart?.Invoke();
                         break;
                     case Opcode.C_Leave_Room:
-                        // 신이동 등등
                         handleStart?.Invoke();
                         break;
                     case Opcode.C_Room_List:
@@ -128,7 +118,7 @@ public class TCPManager : LazySingleton<TCPManager>
                         HandlePong(resultOpcode.timestamp);
                         break;
                     default:
-                        Console.WriteLine("알 수 없는 Opcode입니다.");
+                        Console.WriteLine("알 수 없는 Opcode");
                         break;
                 }
             }
@@ -139,7 +129,6 @@ public class TCPManager : LazySingleton<TCPManager>
         }
         finally
         {
-            // 스트림과 클라이언트를 종료합니다.
             stream?.Close();
             client?.Close();
         }
@@ -273,9 +262,6 @@ public class TCPManager : LazySingleton<TCPManager>
         long currentTimestamp = DateTime.UtcNow.Ticks;
         long ping = (currentTimestamp - _serverTimestamp) / TimeSpan.TicksPerMillisecond;
 
-        Console.WriteLine($"퐁 메시지를 수신했습니다. 핑: {ping}ms");
-
-        // 추가적으로 처리할 로직이 있다면 여기에 작성
         handlePing?.Invoke(ping);
     }
 }

@@ -42,8 +42,8 @@ public class GameSceneController : MonoBehaviour
 
     private CancellationTokenSource readyCancellationTokenSource = null;
 
-    private int[] board;        // 게임 보드를 나타내는 배열
-    private int currentPlayer;  // 현재 플레이어 (0: X, 1: O)
+    private int[] board;
+    private int currentPlayer;
     private bool isReady;
 
     private void Start()
@@ -64,11 +64,7 @@ public class GameSceneController : MonoBehaviour
 
     private void SetRoom()
     {
-        // 1p 2p 세팅
         currentPlayer = inGameManager.SetRoomInfo.users[0].connectNumber == inGameManager.SetUserInfo.connectNumber ? 0 : 1;
-        // timer 세팅
-        // 상대방이 강종했을때 혹은 연결이 끊겼을때 처리
-        // 어떤식으로 진행할지
 
         if (currentPlayer == 0)
         {
@@ -118,10 +114,10 @@ public class GameSceneController : MonoBehaviour
         board = new int[count];
         for (int i = 0; i < count; i++)
         {
-            board[i] = -1; // 빈 칸을 -1로 초기화
+            board[i] = -1;
         }
 
-        currentPlayer = 0; // X 플레이어부터 시작
+        currentPlayer = 0;
 
         ReadyObject.SetActive(true);
         isReady = false;
@@ -151,7 +147,6 @@ public class GameSceneController : MonoBehaviour
 
         dimImage.active = _responseGame.player == currentPlayer ? true : false;
         Debug.Log("이사람{currentPlayer}");
-        // 돌 두기 애니
         await ticTacToeList[_responseGame.index].ChangeTicTacToeElement(_responseGame.player);
 
         // 결과
@@ -159,7 +154,6 @@ public class GameSceneController : MonoBehaviour
         {
             timerManager.StartTimer();
 
-            // 아직 게임 진행중
             if (currentPlayer == _responseGame.player)
             {
                 Debug.Log("요사람{_responseGame.player}");
@@ -171,7 +165,6 @@ public class GameSceneController : MonoBehaviour
                 statusText.text = $"{myText} {turnText}";
             }
 
-            // 이전에 둔 돌 제거 애니
             if (_responseGame.delete == true)
             {
                 await ticTacToeList[_responseGame.deleteIndex].ChangeTicTacToeElement(-1);
@@ -184,13 +177,11 @@ public class GameSceneController : MonoBehaviour
             // 게임종료
             if (_responseGame.winner == currentPlayer)
             {
-                // 유저 승리
                 Debug.Log("승리");
                 resultImage.sprite = winImage;
             }
             else
             {
-                // 상대방 승리
                 Debug.Log("졌다");
                 resultImage.sprite = loseImage;
             }

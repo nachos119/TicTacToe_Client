@@ -59,7 +59,7 @@ public class RoomInfo : Packet
     public int roomNumber;
     public List<UserInfo> users;
     public bool isPlaying;
-    public int[] board;              // 보드 상태 저장
+    public int[] board;
     public Queue<int> playerSelectQueue;
 }
 
@@ -67,7 +67,6 @@ public class UserInfo
 {
     public string name;
 
-    // 연결된 번호
     public int connectNumber;
     public bool isReady;
     public bool isMatching;

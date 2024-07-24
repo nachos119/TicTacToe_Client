@@ -16,7 +16,7 @@ public class TicTacToeElementController : MonoBehaviour
     private Action<int> callBack = null;
     private int index;
 
-    private float animationDuration = 0.5f; // 애니메이션 지속 시간
+    private float animationDuration = 0.5f;
 
     private void Awake()
     {
