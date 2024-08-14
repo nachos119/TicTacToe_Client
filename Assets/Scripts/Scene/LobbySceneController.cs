@@ -12,6 +12,7 @@ public class LobbySceneController : MonoBehaviour
     [SerializeField] private RoomListPanelController roomListPanelController = null;
     [SerializeField] private Button roomListButton = null;
     [SerializeField] private Button matchingButton = null;
+    [SerializeField] private Button singleGameButton = null;
 
     [SerializeField] private PingPanelCountroller pingPanelCountroller = null;
 
@@ -23,6 +24,7 @@ public class LobbySceneController : MonoBehaviour
     {
         roomListButton.onClick.AddListener(OnClickRoomListButton);
         matchingButton.onClick.AddListener(OnClickMatchingButton);
+        singleGameButton.onClick.AddListener(OnClickSingleGameButton);
 
         tcpManager = TCPManager.Instance;
         inGameManager = InGameManager.Instance;
@@ -44,6 +46,12 @@ public class LobbySceneController : MonoBehaviour
         await tcpManager.Matching();
     }
 
+    private void OnClickSingleGameButton()
+    {
+        inGameManager.SetSingleGame = true;
+        UnityEngine.SceneManagement.SceneManager.LoadScene("GameScene");
+    }
+
     private async void OnClickCancelMatchingButton()
     {
         await tcpManager.CancelMatching();
@@ -51,6 +59,8 @@ public class LobbySceneController : MonoBehaviour
 
     private void Matched(RoomInfo _roomInfo)
     {
+        inGameManager.SetSingleGame = false;
+
         inGameManager.SetRoomInfo = _roomInfo;
         UnityEngine.SceneManagement.SceneManager.LoadScene("GameScene");
     }
